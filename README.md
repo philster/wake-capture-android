@@ -10,11 +10,11 @@ No cloud sync, no transcription (yet), no always-on microphone. The app does exa
 
 | Onboarding | Permissions | Quick Settings Setup |
 |---|---|---|
-| ![Welcome](docs/screenshots/01-onboarding-welcome.png) | ![Permissions](docs/screenshots/02-onboarding-permissions.png) | ![QS Tile](docs/screenshots/03-onboarding-quicksettings.png) |
+| <img src="docs/screenshots/01-onboarding-welcome.png" width="200"> | <img src="docs/screenshots/02-onboarding-permissions.png" width="200"> | <img src="docs/screenshots/03-onboarding-quicksettings.png" width="200"> |
 
 | Disarmed | Armed | Recording | Permission Denied |
 |---|---|---|---|
-| ![Disarmed](docs/screenshots/04-home-disarmed.png) | ![Armed](docs/screenshots/05-home-armed.png) | ![Recording](docs/screenshots/06-recording.png) | ![Permission Denied](docs/screenshots/07-permission-denied.png) |
+| <img src="docs/screenshots/04-home-disarmed.png" width="200"> | <img src="docs/screenshots/05-home-armed.png" width="200"> | <img src="docs/screenshots/06-recording.png" width="200"> | <img src="docs/screenshots/07-permission-denied.png" width="200"> |
 
 ## How it works
 
