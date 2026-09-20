@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,7 +37,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -110,6 +117,36 @@ fun HomeScreen(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (uiState.captureState == CaptureState.ARMED) {
+                val context = LocalContext.current
+                val scope = rememberCoroutineScope()
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val result = viewModel.requestStartCapture()
+                            if (result.isSuccess) {
+                                context.startForegroundService(
+                                    AudioCaptureService.startIntent(context)
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = RecordingRed)
+                ) {
+                    Icon(
+                        Icons.Default.Mic,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "Start Capture",
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             if (uiState.captureState == CaptureState.RECORDING) {
                 RecordingIndicator(startTime = uiState.recordingStartTime)
@@ -189,13 +226,27 @@ private fun ArmCard(
 
 @Composable
 private fun AutoDisarmCountdown(armTimestamp: Long, durationMs: Long) {
-    val expiryTime = armTimestamp + durationMs
-    val remainingMs = expiryTime - System.currentTimeMillis()
+    var remainingMs by remember { mutableStateOf(armTimestamp + durationMs - System.currentTimeMillis()) }
+
+    LaunchedEffect(armTimestamp, durationMs) {
+        while (remainingMs > 0) {
+            delay(1000)
+            remainingMs = armTimestamp + durationMs - System.currentTimeMillis()
+        }
+    }
+
     if (remainingMs > 0) {
-        val hours = (remainingMs / (1000 * 60 * 60)).toInt()
-        val minutes = ((remainingMs / (1000 * 60)) % 60).toInt()
+        val totalSeconds = (remainingMs / 1000).toInt()
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        val text = if (hours > 0) {
+            String.format("Auto-disarm in %dh %02dm", hours, minutes)
+        } else {
+            String.format("Auto-disarm in %02d:%02d", minutes, seconds)
+        }
         Text(
-            text = "Auto-disarm in ${hours}h ${minutes}m",
+            text = text,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -210,6 +261,17 @@ private fun AutoDisarmCountdown(armTimestamp: Long, durationMs: Long) {
 
 @Composable
 private fun RecordingIndicator(startTime: Long?) {
+    var elapsedSeconds by remember { mutableStateOf(0) }
+
+    LaunchedEffect(startTime) {
+        if (startTime != null) {
+            while (true) {
+                elapsedSeconds = ((System.currentTimeMillis() - startTime) / 1000).toInt()
+                delay(1000)
+            }
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = RecordingRed.copy(alpha = 0.1f))
@@ -228,9 +290,8 @@ private fun RecordingIndicator(startTime: Long?) {
             Column {
                 Text("Recording in progress", style = MaterialTheme.typography.titleMedium)
                 if (startTime != null) {
-                    val elapsed = ((System.currentTimeMillis() - startTime) / 1000).toInt()
                     Text(
-                        text = String.format("%d:%02d", elapsed / 60, elapsed % 60),
+                        text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }

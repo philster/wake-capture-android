@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wakecapture.app.capture.CaptureCoordinator
 import com.wakecapture.app.capture.CaptureState
+import com.wakecapture.app.data.CaptureSource
 import com.wakecapture.app.data.PreferencesManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,6 +82,14 @@ class HomeViewModel @Inject constructor(
                 _snackbarMessage.value = result.exceptionOrNull()?.message
             }
         }
+    }
+
+    suspend fun requestStartCapture(): Result<Unit> {
+        val result = coordinator.requestStartCapture(CaptureSource.APP)
+        if (result.isFailure) {
+            _snackbarMessage.value = result.exceptionOrNull()?.message
+        }
+        return result
     }
 
     fun setAutoDisarmDuration(durationMs: Long) {
