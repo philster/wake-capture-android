@@ -93,4 +93,4 @@ Silence detection (needs `AudioRecord` swap), transcription, cloud backup, home 
 
 ## License
 
-Private. Not open source.
+MIT. See [LICENSE](LICENSE).
