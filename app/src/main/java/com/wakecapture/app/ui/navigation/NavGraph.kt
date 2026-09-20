@@ -13,12 +13,14 @@ import com.wakecapture.app.ui.onboarding.OnboardingScreen
 import com.wakecapture.app.ui.permission.PermissionDeniedScreen
 import com.wakecapture.app.ui.settings.SettingsScreen
 
+
 object Routes {
     const val ONBOARDING = "onboarding"
     const val HOME = "home"
     const val SETTINGS = "settings"
     const val HISTORY = "history"
     const val DETAIL = "detail/{captureId}"
+    const val PERMISSION_DENIED = "permission_denied"
 
     fun detail(captureId: String) = "detail/$captureId"
 }
@@ -44,6 +46,22 @@ fun WakeCaptureNavGraph(
             HomeScreen(
                 onNavigateToHistory = { navController.navigate(Routes.HISTORY) },
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) }
+            )
+        }
+
+        composable(Routes.PERMISSION_DENIED) {
+            PermissionDeniedScreen(
+                onDisarm = {
+                    onDisarm()
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.PERMISSION_DENIED) { inclusive = true }
+                    }
+                },
+                onPermissionRestored = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.PERMISSION_DENIED) { inclusive = true }
+                    }
+                }
             )
         }
 

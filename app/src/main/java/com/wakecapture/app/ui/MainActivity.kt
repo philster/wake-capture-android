@@ -78,7 +78,8 @@ class MainActivity : ComponentActivity() {
         val onboardingDone = runBlocking { preferencesManager.onboardingCompleted.first() }
 
         return when {
-            !onboardingDone || !hasPermissions -> Routes.ONBOARDING
+            !onboardingDone -> Routes.ONBOARDING
+            !hasPermissions -> Routes.PERMISSION_DENIED
             else -> Routes.HOME
         }
     }
