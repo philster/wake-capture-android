@@ -98,13 +98,17 @@ On supported Android versions, use `StatusBarManager.requestAddTileService()` to
 
 The tile is the preferred Android system-level entry point because it is a direct user action and does not require a custom background listener.
 
-### 3.2 Arming UX
+### 3.2 In-app capture
+
+When armed, the home screen shows a "Start Capture" button. This follows the same path as the Quick Settings tile: `requestStartCapture()` → `startForegroundService()`. The button is hidden when disarmed or already recording.
+
+### 3.3 Arming UX
 
 The app UI provides:
 
 Wake Capture:
 - Armed / Disarmed toggle
-- Auto-disarm timer displayed when armed (shows remaining time or "Until I disarm")
+- Auto-disarm countdown displayed when armed (live-ticking; shows `Xh XXm` when over 1 hour, `MM:SS` when under 1 hour, or hidden when set to "Until I disarm")
 
 Settings (configurable):
 - Auto-stop after silence: configurable via selector (10, 15, 30, 45, 60, 90, 120 seconds; default 30)
@@ -120,7 +124,7 @@ Auto-disarm persistence:
 
 The armed state does NOT access the microphone. It is purely a readiness flag that gates whether system entry points (tile, widget, assistant) will attempt to start a capture.
 
-### 3.3 Important Android limitation
+### 3.4 Important Android limitation
 
 Do NOT assume that every Quick Settings interaction is sufficient to bypass all foreground-service/microphone restrictions on every Android release.
 
@@ -296,7 +300,19 @@ Do not copy this manifest blindly; validate against the current target SDK.
 
 ---
 
-## 7. Runtime permissions
+## 7. Onboarding and runtime permissions
+
+### 7.1 Onboarding flow
+
+First launch presents a 3-page horizontal pager:
+
+1. **Welcome** — app icon, name, tagline. "Next" button.
+2. **Permissions** — requests `RECORD_AUDIO` and `POST_NOTIFICATIONS` together. "Grant Permissions" button launches the system permission dialog. "Skip for now" advances without granting.
+3. **Quick Settings Tile** — instructions for adding the tile to the QS panel. "Get Started" completes onboarding and navigates to the home screen.
+
+Onboarding completion is persisted to DataStore (`onboardingCompleted`). The flow runs once and is not re-shown.
+
+### 7.2 Permission requirements
 
 Before the user can arm Wake Capture:
 
@@ -314,16 +330,17 @@ If microphone permission is denied:
 - Explain how to grant it.
 - Never attempt recording through another API.
 
-### Permission revoked after onboarding
+### 7.3 Permission revoked after onboarding
 
 Android allows users to revoke permissions at any time via Settings, which may kill the app process. On the next interaction (tile tap, widget tap, app launch):
 
-1. Coordinator checks `RECORD_AUDIO` permission state FIRST, before any other action.
-2. If denied: transition to `PERMISSION_DENIED` state.
-3. From tile: `startActivityAndCollapse()` to launch `PermissionDeniedScreen` with an "Open Settings" button (using `Settings.ACTION_APPLICATION_DETAILS_SETTINGS` intent).
-4. From app: show `PermissionDeniedScreen` inline.
-5. On return from Settings: recheck permission in `onResume`/`onStart`. If granted, auto-transition to `ARMED`.
-6. User can cancel to disarm instead.
+1. `MainActivity.determineStartDestination()` checks onboarding and permission state separately: `!onboardingDone → ONBOARDING`, `!hasPermissions → PERMISSION_DENIED`, else `HOME`. This avoids re-showing onboarding when only the permission was revoked.
+2. Coordinator checks `RECORD_AUDIO` permission state FIRST, before any other action.
+3. If denied: transition to `PERMISSION_DENIED` state.
+4. From tile: `startActivityAndCollapse()` to launch `PermissionDeniedScreen` with an "Open Settings" button (using `Settings.ACTION_APPLICATION_DETAILS_SETTINGS` intent).
+5. From app: show `PermissionDeniedScreen` inline via navigation route.
+6. On return from Settings: lifecycle-aware recheck in `RESUMED` state. If granted, auto-navigate to Home.
+7. User can cancel to disarm instead.
 
 ---
 
