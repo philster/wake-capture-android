@@ -72,7 +72,11 @@
     <string name="status_label">Status</string>
     <string name="source_label">Source</string>
     <string name="format_label">Format</string>
-    <string name="transcription_not_available">Transcription not yet available</string>
+    <string name="play_recording">Play Recording</string>
+    <string name="stop_playback">Stop Playback</string>
+    <string name="playback_error_title">Playback Error</string>
+    <string name="playback_error_message">Could not play recording.</string>
+<string name="transcription_not_available">Transcription not yet available</string>
     <string name="delete_capture_title">Delete capture?</string>
     <string name="delete_capture_message">This will permanently delete the recording.</string>
 

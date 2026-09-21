@@ -12,25 +12,34 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,6 +55,9 @@ fun CaptureDetailScreen(
     viewModel: CaptureDetailViewModel = hiltViewModel()
 ) {
     val capture by viewModel.capture.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val fileExists by viewModel.fileExists.collectAsStateWithLifecycle()
+    val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -116,10 +128,49 @@ fun CaptureDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            val buttonLabel = if (isPlaying) {
+                stringResource(R.string.stop_playback)
+            } else {
+                stringResource(R.string.play_recording)
+            }
+
+            FilledTonalButton(
+                onClick = { viewModel.togglePlayback(entity.filePath) },
+                enabled = fileExists || isPlaying,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = buttonLabel
+                        liveRegion = LiveRegionMode.Polite
+                    }
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text(buttonLabel)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = stringResource(R.string.transcription_not_available),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        if (playbackError != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissPlaybackError() },
+                title = { Text(stringResource(R.string.playback_error_title)) },
+                text = { Text(stringResource(R.string.playback_error_message)) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.dismissPlaybackError() }) {
+                        Text(stringResource(android.R.string.ok))
+                    }
+                }
             )
         }
 

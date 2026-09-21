@@ -93,7 +93,9 @@ Wake Capture is designed for a user who is half-awake. Every interaction must be
 
 ### Capture Detail
 
-**Layout:** Scaffold with back arrow and delete icon in top bar. Card with Date, Duration, Status, Source, Format metadata. "Transcription not yet available" placeholder text.
+**Layout:** Scaffold with back arrow and delete icon in top bar. Card with Date, Duration, Status, Source, Format metadata. Play/stop button. "Transcription not yet available" placeholder text.
+
+**Playback:** FilledTonalButton toggles between "Play Recording" (play icon) and "Stop Playback" (stop icon). Disabled when recording file is missing. Requests audio focus before playback; stops on focus loss. Button has live region semantics for TalkBack announcements on state change.
 
 **Delete:** Tap delete icon → confirmation dialog → delete + navigate back.
 
