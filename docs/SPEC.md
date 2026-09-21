@@ -637,13 +637,13 @@ If recording is interrupted:
 
 Do not falsely report a complete capture.
 
-**Open item: process death / sudden kill during recording.**
+**Process death / sudden kill during recording.**
 
-Not yet handled. If the process is killed mid-recording (OEM battery management, system low memory, force stop), the M4A container may be invalid — AAC in MPEG4 requires metadata written at finalization (`MediaRecorder.stop()`). If stop never runs, the file on disk may contain audio frames but the container is unreadable.
+If the process is killed mid-recording (OEM battery management, system low memory, force stop), the M4A container may be invalid — AAC in MPEG4 requires metadata written at finalization (`MediaRecorder.stop()`). If stop never runs, the file on disk may contain audio frames but the container is unreadable.
 
-Two mitigations to consider:
-1. **Recovery breadcrumb.** Write a lightweight file (capture ID, timestamp, file path) at recording start; delete on successful stop. On next app launch, detect orphaned recordings and attempt recovery or cleanup.
-2. **Container format.** If recovery is critical, evaluate whether a streaming-friendly container (e.g., raw AAC with ADTS headers) would be more resilient to incomplete writes, at the cost of compatibility.
+Mitigation (implemented): **Recovery breadcrumb.** `RecordingFileStore` writes a breadcrumb file (containing the recording file path) at recording start and deletes it on successful stop. On next app launch, `CaptureCoordinator.checkForOrphanedRecordings()` detects orphaned breadcrumbs: if the referenced audio file exists, it persists the capture as `INTERRUPTED`; otherwise it cleans up the breadcrumb.
+
+Future consideration: if recovery fidelity is critical, evaluate whether a streaming-friendly container (e.g., raw AAC with ADTS headers) would be more resilient to incomplete writes, at the cost of compatibility.
 
 ---
 

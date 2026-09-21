@@ -3,7 +3,9 @@ package com.wakecapture.app.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wakecapture.app.capture.CaptureCoordinator
+import com.wakecapture.app.capture.CaptureError
 import com.wakecapture.app.capture.CaptureState
+import com.wakecapture.app.capture.RecoveryAction
 import com.wakecapture.app.data.CaptureSource
 import com.wakecapture.app.data.PreferencesManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +17,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+data class SnackbarEvent(
+    val message: String,
+    val recoveryAction: RecoveryAction? = null
+)
 
 data class HomeUiState(
     val captureState: CaptureState = CaptureState.DISARMED,
@@ -32,8 +39,8 @@ class HomeViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarEvent = MutableStateFlow<SnackbarEvent?>(null)
+    val snackbarEvent: StateFlow<SnackbarEvent?> = _snackbarEvent.asStateFlow()
 
     val uiState: StateFlow<HomeUiState> = combine(
         coordinator.state,
@@ -79,7 +86,7 @@ class HomeViewModel @Inject constructor(
                 else -> Result.failure(IllegalStateException("Cannot toggle from $state"))
             }
             if (result.isFailure) {
-                _snackbarMessage.value = result.exceptionOrNull()?.message
+                emitSnackbar(result.exceptionOrNull()?.message)
             }
         }
     }
@@ -87,9 +94,16 @@ class HomeViewModel @Inject constructor(
     suspend fun requestStartCapture(): Result<Unit> {
         val result = coordinator.requestStartCapture(CaptureSource.APP)
         if (result.isFailure) {
-            _snackbarMessage.value = result.exceptionOrNull()?.message
+            emitSnackbar(result.exceptionOrNull()?.message)
         }
         return result
+    }
+
+    private fun emitSnackbar(message: String?) {
+        val error = coordinator.error.value
+        _snackbarEvent.value = message?.let {
+            SnackbarEvent(message = it, recoveryAction = error?.recoveryAction)
+        }
     }
 
     fun setAutoDisarmDuration(durationMs: Long) {
@@ -105,7 +119,11 @@ class HomeViewModel @Inject constructor(
     }
 
     fun clearSnackbar() {
-        _snackbarMessage.value = null
+        _snackbarEvent.value = null
+    }
+
+    fun handleAutoDisarmExpiry() {
+        viewModelScope.launch { coordinator.checkAndHandleExpiry() }
     }
 
     fun onPermissionResult(granted: Boolean) {

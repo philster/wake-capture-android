@@ -2,6 +2,9 @@ package com.wakecapture.app.ui.home
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.storage.StorageManager
+import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -57,6 +61,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wakecapture.app.R
 import com.wakecapture.app.capture.CaptureState
+import com.wakecapture.app.capture.RecoveryAction
 import com.wakecapture.app.capture.service.AudioCaptureService
 import com.wakecapture.app.data.PreferencesManager
 import com.wakecapture.app.ui.theme.ArmedGreen
@@ -71,14 +76,35 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarEvent by viewModel.snackbarEvent.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
+    LaunchedEffect(snackbarEvent) {
+        val event = snackbarEvent ?: return@LaunchedEffect
+        val actionLabel = when (event.recoveryAction) {
+            RecoveryAction.OPEN_APP_SETTINGS -> context.getString(R.string.open_settings)
+            RecoveryAction.OPEN_STORAGE_SETTINGS -> context.getString(R.string.manage_storage)
+            null -> null
         }
+        val result = snackbarHostState.showSnackbar(
+            message = event.message,
+            actionLabel = actionLabel
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            when (event.recoveryAction) {
+                RecoveryAction.OPEN_APP_SETTINGS -> context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                )
+                RecoveryAction.OPEN_STORAGE_SETTINGS -> context.startActivity(
+                    Intent(StorageManager.ACTION_MANAGE_STORAGE)
+                )
+                null -> {}
+            }
+        }
+        viewModel.clearSnackbar()
     }
 
     Scaffold(
@@ -98,7 +124,6 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             if (uiState.captureState == CaptureState.RECORDING) {
-                val context = LocalContext.current
                 FloatingActionButton(
                     onClick = { stopRecording(context) },
                     containerColor = RecordingRed
@@ -121,13 +146,13 @@ fun HomeScreen(
                 captureState = uiState.captureState,
                 armTimestamp = uiState.armTimestamp,
                 autoDisarmDurationMs = uiState.autoDisarmDurationMs,
-                onToggle = { viewModel.toggleArm() }
+                onToggle = { viewModel.toggleArm() },
+                onAutoDisarmExpired = { viewModel.handleAutoDisarmExpiry() }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             if (uiState.captureState == CaptureState.ARMED) {
-                val context = LocalContext.current
                 val scope = rememberCoroutineScope()
                 Button(
                     onClick = {
@@ -173,7 +198,8 @@ private fun ArmCard(
     captureState: CaptureState,
     armTimestamp: Long?,
     autoDisarmDurationMs: Long,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    onAutoDisarmExpired: () -> Unit
 ) {
     val isArmed = captureState != CaptureState.DISARMED
     val cardColor by animateColorAsState(
@@ -229,14 +255,14 @@ private fun ArmCard(
 
             if (isArmed && armTimestamp != null && autoDisarmDurationMs != PreferencesManager.DURATION_UNTIL_DISARM) {
                 Spacer(modifier = Modifier.height(8.dp))
-                AutoDisarmCountdown(armTimestamp, autoDisarmDurationMs)
+                AutoDisarmCountdown(armTimestamp, autoDisarmDurationMs, onAutoDisarmExpired)
             }
         }
     }
 }
 
 @Composable
-private fun AutoDisarmCountdown(armTimestamp: Long, durationMs: Long) {
+private fun AutoDisarmCountdown(armTimestamp: Long, durationMs: Long, onExpired: () -> Unit) {
     var remainingMs by remember { mutableStateOf(armTimestamp + durationMs - System.currentTimeMillis()) }
 
     LaunchedEffect(armTimestamp, durationMs) {
@@ -244,6 +270,7 @@ private fun AutoDisarmCountdown(armTimestamp: Long, durationMs: Long) {
             delay(1000)
             remainingMs = armTimestamp + durationMs - System.currentTimeMillis()
         }
+        onExpired()
     }
 
     if (remainingMs > 0) {

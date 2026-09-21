@@ -89,7 +89,7 @@ app/src/main/java/com/wakecapture/app/
 
 ## What's not built yet
 
-Silence detection (needs `AudioRecord` swap), transcription, cloud backup, home screen widget, assistant integration, process-death recovery for interrupted recordings. See `docs/SPEC.md` for the full plan.
+Silence detection (needs `AudioRecord` swap), transcription, cloud backup, home screen widget, assistant integration. See `docs/SPEC.md` for the full plan.
 
 ## License
 

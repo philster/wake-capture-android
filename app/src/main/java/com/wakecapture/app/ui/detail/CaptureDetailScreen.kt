@@ -21,6 +21,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -128,11 +129,16 @@ fun CaptureDetailScreen(
                 title = { Text(stringResource(R.string.delete_capture_title)) },
                 text = { Text(stringResource(R.string.delete_capture_message)) },
                 confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.delete()
-                        showDeleteDialog = false
-                        onBack()
-                    }) { Text(stringResource(R.string.delete)) }
+                    TextButton(
+                        onClick = {
+                            viewModel.delete()
+                            showDeleteDialog = false
+                            onBack()
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) { Text(stringResource(R.string.delete)) }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.cancel)) }
