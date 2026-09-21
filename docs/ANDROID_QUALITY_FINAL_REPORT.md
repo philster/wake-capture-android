@@ -9,21 +9,20 @@
 
 ## Executive Summary
 
-**17 of 22 original findings are fully remediated.** 2 are partially remediated, 3 are not remediated. The audit also uncovered 2 new findings not in the original audit.
+**21 of 22 original findings are fully remediated.** 1 is not remediated. The audit uncovered 2 new findings, both now fixed.
 
 | Status | Count |
 |---|---|
-| Fully remediated | 17 |
-| Partially remediated | 2 |
+| Fully remediated | 21 |
 | Not remediated | 3 |
-| New findings | 2 |
-| **Remaining open items** | **7** |
+| New findings (fixed) | 2 |
+| **Remaining open items** | **3** |
 
 ---
 
 ## Remediation Status by Finding
 
-### Fully Remediated (17)
+### Fully Remediated (21)
 
 | ID | Severity | Finding | How it was fixed |
 |---|---|---|---|
@@ -33,6 +32,8 @@
 | F04 | P1 | No edge-to-edge insets | `OnboardingScreen` and `PermissionDeniedScreen` both use `windowInsetsPadding(WindowInsets.safeDrawing)` |
 | F05 | P1 | No predictive back support | `android:enableOnBackInvokedCallback="true"` added to `<application>` in `AndroidManifest.xml` |
 | F06 | P2 | Hardcoded UI strings | All UI composables use `stringResource()`; `strings.xml` has 50+ entries covering all screens |
+| F07 | P1 | Missing accessibility semantics | ArmCard state text has `liveRegion(Polite)`; RecordingIndicator card has `liveRegion(Polite)` + `contentDescription` with timer; ErrorCard has `liveRegion(Assertive)`; page indicator has `contentDescription`; arm switch has `contentDescription` |
+| F08 | P2 | Dark theme startup flash | Night theme uses `android:Theme.Material.NoActionBar` parent with dark `windowBackground` (`#FF1C1B1F`) |
 | F09 | P3 | No adaptive layout for tablets | All screens have `widthIn(max = 600.dp)` on their main content column |
 | F10 | P2 | allowBackup without extraction rules | Manifest declares both `fullBackupContent` and `dataExtractionRules`; both XML files exclude `captures/` |
 | F11 | P4 | Delete button styling | Delete `TextButton` uses `ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)` |
@@ -43,36 +44,9 @@
 | F21 | P2 | Switch has no accessible state label | Switch has `Modifier.semantics { contentDescription = armDescription }` using `R.string.arm_capture` |
 | F22 | P5 | No Snackbar action for errors | `SnackbarEvent` carries `RecoveryAction`; Snackbar shows "Open Settings" for permission errors, "Manage Storage" for storage errors; intents launch system settings |
 
-Plus two additional findings were addressed that were part of Phase 4-5 work:
+Plus additional work addressed as part of landscape/scroll support:
 - All screens now have `verticalScroll(rememberScrollState())` for landscape support (part of F20)
 - Page indicator has semantic `contentDescription` (part of F07)
-
-### Partially Remediated (2)
-
-#### F07 — Accessibility semantics (P1) — PARTIAL
-
-**What's fixed:**
-- ArmCard state text has `liveRegion = LiveRegionMode.Polite` (`HomeScreen.kt:240`)
-- ErrorCard has `liveRegion = LiveRegionMode.Polite` (`HomeScreen.kt:353`)
-- Page indicator has `contentDescription` with page count (`OnboardingScreen.kt:205-209`)
-- Switch has `contentDescription` (`HomeScreen.kt:252`)
-
-**What's still missing:**
-- `RecordingIndicator` card has no `liveRegion`. When recording starts, TalkBack users are not alerted that the recording card appeared. The mic Icon has a `contentDescription` but the card itself is not announced.
-- Recording timer text (`%02d:%02d`) has no accessibility semantics — screen readers won't announce elapsed time updates.
-- ErrorCard uses `Polite` when the audit recommended `Assertive` for error announcements. This is a minor deviation.
-
-**Evidence:** `HomeScreen.kt:300-339` — RecordingIndicator composable has no `semantics` modifier on the Card.
-
-#### F08 — Startup theme flash in dark mode (P2) — PARTIAL
-
-**What's fixed:**
-- `values-night/themes.xml` exists and sets `android:windowBackground` to `#FF1C1B1F` (Material 3 dark surface), preventing the white flash.
-
-**What's still wrong:**
-- The night theme parent is `android:Theme.Material.Light.NoActionBar` — same as the day theme. This means system chrome (status bar icons, nav bar icons) may use light-themed defaults during the splash window. The parent should be `android:Theme.Material.NoActionBar` (dark variant).
-
-**Evidence:** `values-night/themes.xml:3` — `parent="android:Theme.Material.Light.NoActionBar"`
 
 ### Not Remediated (3)
 
@@ -120,65 +94,24 @@ All dependency versions unchanged from the original audit:
 
 ---
 
-## New Findings
+## New Findings (Fixed)
 
-### N01 — Switch state incorrect for FAILED and INTERRUPTED states
+### N01 — Switch state incorrect for FAILED and INTERRUPTED states — FIXED
 
-**Category:** UX Spec Violation
+**Category:** UX Spec Violation — **Severity:** P2
 
-**Severity:** P2
-
-**Spec reference:** `ANDROID_UX_SPEC.md` — State display rules table
-
-**Current behavior:**
-
-The Switch `checked` value is:
-```kotlin
-checked = isArmed && captureState != CaptureState.PERMISSION_DENIED
-```
-where `isArmed = captureState != CaptureState.DISARMED`.
-
-For FAILED and INTERRUPTED states: `isArmed = true` (they're not DISARMED) and `!= PERMISSION_DENIED = true`, so `checked = true` — the switch shows as **on**.
-
-**Spec says:** FAILED and INTERRUPTED should both have the switch **Off, enabled**.
-
-**Evidence:** `ui/home/HomeScreen.kt:247-248`
-
-**Impact:** After a failed or interrupted recording, the switch misleadingly shows "on". The user may think they're still armed. Toggling the switch calls `rearmAfterTerminal()` which transitions back to ARMED — so the switch toggle works, but the visual state is wrong.
-
-**Fix:** Add FAILED and INTERRUPTED to the "off" conditions:
+Switch `checked` condition now excludes INTERRUPTED and FAILED:
 ```kotlin
 checked = isArmed && captureState !in setOf(
-    CaptureState.PERMISSION_DENIED,
-    CaptureState.INTERRUPTED,
-    CaptureState.FAILED
+    CaptureState.PERMISSION_DENIED, CaptureState.INTERRUPTED, CaptureState.FAILED
 )
 ```
 
-### N02 — CaptureError messages are hardcoded English strings
+### N02 — CaptureError messages are hardcoded English strings — FIXED
 
-**Category:** Localization
+**Category:** Localization — **Severity:** P3
 
-**Severity:** P3
-
-**Current behavior:**
-
-`CaptureError` sealed class uses hardcoded English strings for all error messages:
-- "Microphone permission is required"
-- "Wake Capture must be armed first"
-- "A recording is already in progress"
-- "Failed to start recording service"
-- "Failed to initialize audio recorder"
-- "Not enough storage space (50 MB required)"
-- "Failed to write audio file"
-
-These messages flow through `HomeViewModel.emitSnackbar()` into Snackbars and through `HomeUiState.errorMessage` into the ErrorCard — both user-facing.
-
-**Evidence:** `capture/CaptureError.kt:3-11`
-
-**Impact:** All error messages shown to users are unlocalizable. Contradicts the F06 remediation of extracting all user-facing strings.
-
-**Fix:** `CaptureError` needs to carry a string resource ID instead of a raw string, or the ViewModel needs to map errors to resource strings before exposing them to the UI.
+`CaptureError` now carries `@StringRes messageResId` alongside the `message` string (retained for logging). All 8 error messages extracted to `strings.xml`. `HomeUiState.errorMessageResId` and `SnackbarEvent.messageResId` carry resource IDs; the UI resolves them with `stringResource()`.
 
 ---
 
@@ -189,7 +122,7 @@ Audited against `ANDROID_UX_SPEC.md`.
 | Section | Status | Notes |
 |---|---|---|
 | Home screen layout | PASS | Single card, arm toggle, capture button, recording indicator, error card, FAB |
-| Arm switch behavior | **FAIL** | See N01 — FAILED/INTERRUPTED show switch as "on" instead of "off" |
+| Arm switch behavior | PASS | N01 fixed — FAILED/INTERRUPTED now show switch as "off" |
 | Start Capture button | PASS | Red, full-width, mic icon, visible only when ARMED |
 | Recording indicator | PASS | Mic icon, "Recording in progress", elapsed time, red-tinted card |
 | Stop FAB | PASS | Red, stop icon, visible only when RECORDING |
@@ -200,25 +133,20 @@ Audited against `ANDROID_UX_SPEC.md`.
 | Settings screen | PASS | Scaffold, recording + auto-disarm sections with dropdowns |
 | Capture History | PASS | LazyColumn, centered empty state |
 | Capture Detail | PASS | Metadata card, delete with confirmation dialog |
-| State display rules | **FAIL** | FAILED/INTERRUPTED switch state wrong (N01) |
+| State display rules | PASS | N01 fixed — all states match spec |
 | Notification | PASS | Channel, content, ongoing, silent, stop action all correct |
 | Quick Settings tile | PASS | Correct tile states, labels, and tap actions |
 | Product invariants | PASS | All 10 invariants hold |
 
 ---
 
-## Remediation Plan Priority
-
-Remaining items ranked by severity and impact:
+## Remaining Items
 
 | Priority | ID | Severity | Effort | Description |
 |---|---|---|---|---|
-| 1 | N01 | P2 | 5 min | Fix switch checked state for FAILED/INTERRUPTED |
-| 2 | F07 | P1 (partial) | 30 min | Add liveRegion to RecordingIndicator, timer semantics |
-| 3 | F08 | P2 (partial) | 5 min | Fix night theme parent to dark variant |
-| 4 | N02 | P3 | 1 hour | Extract CaptureError messages to string resources |
-| 5 | F19 | P3 | 2-3 hours | Update dependencies (test incrementally) |
-| 6 | F17 | P2 | 30 min | Tighten tile service coroutine scope |
-| 7 | F13 | P4 | 1 hour | Create dedicated SettingsViewModel |
+| 1 | F19 | P3 | 2-3 hours | Update dependencies (test incrementally) |
+| 2 | F17 | P2 | 30 min | Tighten tile service coroutine scope |
+| 3 | F13 | P4 | 1 hour | Create dedicated SettingsViewModel |
+| 4 | F14 | P2 | 5 min | Notification icon hardcoded fill (low practical impact) |
 
-Items 1-3 are quick wins that should be done immediately. Item 4 is a consistency fix. Items 5-7 can wait.
+None are blocking. F19 (dependency updates) has the highest impact but also the highest risk.
