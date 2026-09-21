@@ -82,13 +82,18 @@ fun HomeScreen(
 
     LaunchedEffect(snackbarEvent) {
         val event = snackbarEvent ?: return@LaunchedEffect
+        val message = if (event.messageResId != 0) {
+            context.getString(event.messageResId)
+        } else {
+            event.fallbackMessage ?: return@LaunchedEffect
+        }
         val actionLabel = when (event.recoveryAction) {
             RecoveryAction.OPEN_APP_SETTINGS -> context.getString(R.string.open_settings)
             RecoveryAction.OPEN_STORAGE_SETTINGS -> context.getString(R.string.manage_storage)
             null -> null
         }
         val result = snackbarHostState.showSnackbar(
-            message = event.message,
+            message = message,
             actionLabel = actionLabel
         )
         if (result == SnackbarResult.ActionPerformed) {
@@ -185,9 +190,9 @@ fun HomeScreen(
                 RecordingIndicator(startTime = uiState.recordingStartTime)
             }
 
-            if (uiState.errorMessage != null) {
+            if (uiState.errorMessageResId != 0) {
                 Spacer(modifier = Modifier.height(8.dp))
-                ErrorCard(message = uiState.errorMessage!!)
+                ErrorCard(message = stringResource(uiState.errorMessageResId))
             }
         }
     }
@@ -244,7 +249,11 @@ private fun ArmCard(
                 }
                 val armDescription = stringResource(R.string.arm_capture)
                 Switch(
-                    checked = isArmed && captureState != CaptureState.PERMISSION_DENIED,
+                    checked = isArmed && captureState !in setOf(
+                        CaptureState.PERMISSION_DENIED,
+                        CaptureState.INTERRUPTED,
+                        CaptureState.FAILED
+                    ),
                     onCheckedChange = { onToggle() },
                     enabled = captureState !in setOf(
                         CaptureState.STARTING, CaptureState.RECORDING, CaptureState.STOPPING
@@ -310,8 +319,15 @@ private fun RecordingIndicator(startTime: Long?) {
         }
     }
 
+    val timerText = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
+    val cardDescription = stringResource(R.string.recording_in_progress) + " " + timerText
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                liveRegion = LiveRegionMode.Polite
+                contentDescription = cardDescription
+            },
         colors = CardDefaults.cardColors(containerColor = RecordingRed.copy(alpha = 0.1f))
     ) {
         Row(
@@ -321,7 +337,7 @@ private fun RecordingIndicator(startTime: Long?) {
         ) {
             Icon(
                 Icons.Default.Mic,
-                contentDescription = stringResource(R.string.recording_active),
+                contentDescription = null,
                 tint = RecordingRed,
                 modifier = Modifier.size(32.dp)
             )
@@ -329,7 +345,7 @@ private fun RecordingIndicator(startTime: Long?) {
                 Text(stringResource(R.string.recording_in_progress), style = MaterialTheme.typography.titleMedium)
                 if (startTime != null) {
                     Text(
-                        text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
+                        text = timerText,
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
@@ -350,7 +366,7 @@ private fun ErrorCard(message: String) {
             text = message,
             modifier = Modifier
                 .padding(16.dp)
-                .semantics { liveRegion = LiveRegionMode.Polite },
+                .semantics { liveRegion = LiveRegionMode.Assertive },
             color = MaterialTheme.colorScheme.onErrorContainer
         )
     }

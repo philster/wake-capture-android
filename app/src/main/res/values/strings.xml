@@ -81,6 +81,16 @@
     <string name="notification_channel_description">Shown while Wake Capture is recording audio</string>
     <string name="notification_stop">Stop</string>
 
+    <!-- Errors -->
+    <string name="error_permission_denied">Microphone permission is required</string>
+    <string name="error_not_armed">Wake Capture must be armed first</string>
+    <string name="error_already_recording">A recording is already in progress</string>
+    <string name="error_service_start_failed">Failed to start recording service</string>
+    <string name="error_recorder_init_failed">Failed to initialize audio recorder</string>
+    <string name="error_insufficient_storage">Not enough storage space (50 MB required)</string>
+    <string name="error_file_write_failed">Failed to write audio file</string>
+    <string name="error_unexpected">Unexpected error</string>
+
     <!-- Tile -->
     <string name="tile_mic_permission_required">Microphone permission required</string>
     <string name="tile_arm_first">Arm Wake Capture first</string>

@@ -19,7 +19,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SnackbarEvent(
-    val message: String,
+    val messageResId: Int = 0,
+    val fallbackMessage: String? = null,
     val recoveryAction: RecoveryAction? = null
 )
 
@@ -29,7 +30,7 @@ data class HomeUiState(
     val armTimestamp: Long? = null,
     val silenceTimeoutSeconds: Int = PreferencesManager.DEFAULT_SILENCE_TIMEOUT_SECONDS,
     val maxRecordingMinutes: Int = PreferencesManager.DEFAULT_MAX_RECORDING_MINUTES,
-    val errorMessage: String? = null,
+    val errorMessageResId: Int = 0,
     val recordingStartTime: Long? = null
 )
 
@@ -66,7 +67,7 @@ class HomeViewModel @Inject constructor(
             armTimestamp = armTs,
             silenceTimeoutSeconds = silence,
             maxRecordingMinutes = maxRec,
-            errorMessage = error?.message,
+            errorMessageResId = error?.messageResId ?: 0,
             recordingStartTime = recordingStart
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
@@ -99,10 +100,15 @@ class HomeViewModel @Inject constructor(
         return result
     }
 
-    private fun emitSnackbar(message: String?) {
+    private fun emitSnackbar(fallbackMessage: String?) {
         val error = coordinator.error.value
-        _snackbarEvent.value = message?.let {
-            SnackbarEvent(message = it, recoveryAction = error?.recoveryAction)
+        if (error != null) {
+            _snackbarEvent.value = SnackbarEvent(
+                messageResId = error.messageResId,
+                recoveryAction = error.recoveryAction
+            )
+        } else if (fallbackMessage != null) {
+            _snackbarEvent.value = SnackbarEvent(fallbackMessage = fallbackMessage)
         }
     }
 
