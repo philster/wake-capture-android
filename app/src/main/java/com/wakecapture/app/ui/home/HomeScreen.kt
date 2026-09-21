@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -46,9 +47,15 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wakecapture.app.R
 import com.wakecapture.app.capture.CaptureState
 import com.wakecapture.app.capture.service.AudioCaptureService
 import com.wakecapture.app.data.PreferencesManager
@@ -77,13 +84,13 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Wake Capture") },
+                title = { Text(stringResource(R.string.wake_capture)) },
                 actions = {
                     IconButton(onClick = onNavigateToHistory) {
-                        Icon(Icons.Default.History, contentDescription = "History")
+                        Icon(Icons.Default.History, contentDescription = stringResource(R.string.history))
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 }
             )
@@ -96,15 +103,16 @@ fun HomeScreen(
                     onClick = { stopRecording(context) },
                     containerColor = RecordingRed
                 ) {
-                    Icon(Icons.Default.Stop, contentDescription = "Stop recording")
+                    Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.stop_recording))
                 }
             }
         }
     ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
                 .padding(padding)
+                .widthIn(max = 600.dp)
+                .fillMaxSize()
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -141,7 +149,7 @@ fun HomeScreen(
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        "Start Capture",
+                        stringResource(R.string.start_capture),
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
@@ -189,30 +197,33 @@ private fun ArmCard(
             ) {
                 Column {
                     Text(
-                        text = "Wake Capture",
+                        text = stringResource(R.string.wake_capture),
                         style = MaterialTheme.typography.titleLarge
                     )
                     Text(
                         text = when (captureState) {
-                            CaptureState.DISARMED -> "Disarmed"
-                            CaptureState.ARMED -> "Armed"
-                            CaptureState.STARTING -> "Starting..."
-                            CaptureState.RECORDING -> "Recording"
-                            CaptureState.STOPPING -> "Stopping..."
-                            CaptureState.INTERRUPTED -> "Interrupted"
-                            CaptureState.PERMISSION_DENIED -> "Permission required"
-                            CaptureState.FAILED -> "Failed"
+                            CaptureState.DISARMED -> stringResource(R.string.state_disarmed)
+                            CaptureState.ARMED -> stringResource(R.string.state_armed)
+                            CaptureState.STARTING -> stringResource(R.string.state_starting)
+                            CaptureState.RECORDING -> stringResource(R.string.state_recording)
+                            CaptureState.STOPPING -> stringResource(R.string.state_stopping)
+                            CaptureState.INTERRUPTED -> stringResource(R.string.state_interrupted)
+                            CaptureState.PERMISSION_DENIED -> stringResource(R.string.state_permission_required)
+                            CaptureState.FAILED -> stringResource(R.string.state_failed)
                         },
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                val armDescription = stringResource(R.string.arm_capture)
                 Switch(
                     checked = isArmed && captureState != CaptureState.PERMISSION_DENIED,
                     onCheckedChange = { onToggle() },
                     enabled = captureState !in setOf(
                         CaptureState.STARTING, CaptureState.RECORDING, CaptureState.STOPPING
-                    )
+                    ),
+                    modifier = Modifier.semantics { contentDescription = armDescription }
                 )
             }
 
@@ -241,9 +252,9 @@ private fun AutoDisarmCountdown(armTimestamp: Long, durationMs: Long) {
         val minutes = (totalSeconds % 3600) / 60
         val seconds = totalSeconds % 60
         val text = if (hours > 0) {
-            String.format("Auto-disarm in %dh %02dm", hours, minutes)
+            stringResource(R.string.auto_disarm_hm, hours, minutes)
         } else {
-            String.format("Auto-disarm in %02d:%02d", minutes, seconds)
+            stringResource(R.string.auto_disarm_ms, minutes, seconds)
         }
         Text(
             text = text,
@@ -252,7 +263,7 @@ private fun AutoDisarmCountdown(armTimestamp: Long, durationMs: Long) {
         )
     } else {
         Text(
-            text = "Auto-disarm expired",
+            text = stringResource(R.string.auto_disarm_expired),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error
         )
@@ -283,12 +294,12 @@ private fun RecordingIndicator(startTime: Long?) {
         ) {
             Icon(
                 Icons.Default.Mic,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.recording_active),
                 tint = RecordingRed,
                 modifier = Modifier.size(32.dp)
             )
             Column {
-                Text("Recording in progress", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.recording_in_progress), style = MaterialTheme.typography.titleMedium)
                 if (startTime != null) {
                     Text(
                         text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
@@ -310,7 +321,9 @@ private fun ErrorCard(message: String) {
     ) {
         Text(
             text = message,
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .padding(16.dp)
+                .semantics { liveRegion = LiveRegionMode.Polite },
             color = MaterialTheme.colorScheme.onErrorContainer
         )
     }

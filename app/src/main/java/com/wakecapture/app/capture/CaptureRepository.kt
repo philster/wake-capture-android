@@ -68,6 +68,10 @@ class CaptureRepository @Inject constructor(
         captureDao.insert(entity)
     }
 
+    fun writeBreadcrumb(filePath: String) = fileStore.writeBreadcrumb(filePath)
+    fun clearBreadcrumb() = fileStore.clearBreadcrumb()
+    fun readOrphanedBreadcrumb(): String? = fileStore.readOrphanedBreadcrumb()
+
     suspend fun deleteCapture(id: String) {
         val capture = captureDao.getById(id) ?: return
         fileStore.deleteFile(capture.filePath)

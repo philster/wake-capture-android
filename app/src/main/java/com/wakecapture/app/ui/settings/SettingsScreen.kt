@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,9 +27,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wakecapture.app.R
 import com.wakecapture.app.data.PreferencesManager
 import com.wakecapture.app.ui.home.HomeViewModel
 
@@ -43,10 +46,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -54,20 +57,21 @@ fun SettingsScreen(
     ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
                 .padding(padding)
+                .widthIn(max = 600.dp)
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = "Recording",
+                text = stringResource(R.string.recording_section),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
             DropdownSetting(
-                title = "Auto-stop after silence",
-                subtitle = "${uiState.silenceTimeoutSeconds}s (not yet active)",
+                title = stringResource(R.string.auto_stop_silence),
+                subtitle = stringResource(R.string.silence_timeout_subtitle, uiState.silenceTimeoutSeconds),
                 options = PreferencesManager.SILENCE_TIMEOUT_OPTIONS.map { "${it}s" },
                 onSelected = { index ->
                     viewModel.setSilenceTimeout(PreferencesManager.SILENCE_TIMEOUT_OPTIONS[index])
@@ -75,8 +79,8 @@ fun SettingsScreen(
             )
 
             DropdownSetting(
-                title = "Maximum recording length",
-                subtitle = "${uiState.maxRecordingMinutes} min",
+                title = stringResource(R.string.max_recording_length),
+                subtitle = stringResource(R.string.max_recording_subtitle, uiState.maxRecordingMinutes),
                 options = PreferencesManager.MAX_RECORDING_OPTIONS.map { "$it min" },
                 onSelected = { index ->
                     viewModel.setMaxRecordingDuration(PreferencesManager.MAX_RECORDING_OPTIONS[index])
@@ -86,7 +90,7 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Auto-disarm",
+                text = stringResource(R.string.auto_disarm_section),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -97,7 +101,7 @@ fun SettingsScreen(
                 ?: "8 hours"
 
             DropdownSetting(
-                title = "Auto-disarm after",
+                title = stringResource(R.string.auto_disarm_after),
                 subtitle = currentLabel,
                 options = autoDisarmEntries.map { it.key },
                 onSelected = { index ->

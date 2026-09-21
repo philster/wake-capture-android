@@ -12,7 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material3.Button
@@ -26,11 +32,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.wakecapture.app.R
 
 @Composable
 fun PermissionDeniedScreen(
@@ -53,7 +61,10 @@ fun PermissionDeniedScreen(
 
     Column(
         modifier = Modifier
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .widthIn(max = 600.dp)
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -68,7 +79,7 @@ fun PermissionDeniedScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Microphone Permission Required",
+            text = stringResource(R.string.mic_permission_required),
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center
         )
@@ -76,8 +87,7 @@ fun PermissionDeniedScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Wake Capture needs microphone access to record audio. " +
-                    "Please enable it in Settings.",
+            text = stringResource(R.string.mic_permission_explanation),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
@@ -93,7 +103,7 @@ fun PermissionDeniedScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Open Settings")
+            Text(stringResource(R.string.open_settings))
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -102,7 +112,7 @@ fun PermissionDeniedScreen(
             onClick = onDisarm,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Disarm")
+            Text(stringResource(R.string.disarm))
         }
     }
 }

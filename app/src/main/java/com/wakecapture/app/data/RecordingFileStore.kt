@@ -29,7 +29,26 @@ class RecordingFileStore @Inject constructor(
         return capturesDir.usableSpace >= requiredBytes
     }
 
+    private val breadcrumbFile: File
+        get() = File(context.filesDir, BREADCRUMB_FILENAME)
+
+    fun writeBreadcrumb(filePath: String) {
+        breadcrumbFile.writeText(filePath)
+    }
+
+    fun clearBreadcrumb() {
+        breadcrumbFile.delete()
+    }
+
+    fun readOrphanedBreadcrumb(): String? {
+        val file = breadcrumbFile
+        if (!file.exists()) return null
+        val path = file.readText().trim()
+        return path.ifEmpty { null }
+    }
+
     companion object {
         const val MINIMUM_STORAGE_BYTES = 50L * 1024 * 1024 // 50 MB
+        private const val BREADCRUMB_FILENAME = "recording_breadcrumb"
     }
 }

@@ -8,6 +8,9 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -26,6 +29,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -39,6 +43,8 @@ class AudioCaptureService : Service() {
     private var maxDurationJob: Job? = null
     private var notificationUpdateJob: Job? = null
     private var recordingStartTime: Long = 0
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -79,6 +85,10 @@ class AudioCaptureService : Service() {
             return
         }
 
+        if (!requestAudioFocus()) {
+            Log.w(TAG, "Audio focus not granted, proceeding anyway")
+        }
+
         try {
             audioRecorder.initialize(filePath)
             audioRecorder.start()
@@ -101,7 +111,7 @@ class AudioCaptureService : Service() {
         }
     }
 
-    private fun finalizeRecording() {
+    private fun finalizeRecording(asInterrupted: Boolean = false) {
         maxDurationJob?.cancel()
         notificationUpdateJob?.cancel()
         val durationMs = System.currentTimeMillis() - recordingStartTime
@@ -110,7 +120,11 @@ class AudioCaptureService : Service() {
             audioRecorder.stop()
             audioRecorder.release()
             serviceScope.launch {
-                coordinator.onCaptureSaved(durationMs)
+                if (asInterrupted) {
+                    coordinator.onCaptureInterrupted(durationMs)
+                } else {
+                    coordinator.onCaptureSaved(durationMs)
+                }
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -145,13 +159,46 @@ class AudioCaptureService : Service() {
         }
     }
 
+    private fun requestAudioFocus(): Boolean {
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager = am
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            .setOnAudioFocusChangeListener { focusChange ->
+                when (focusChange) {
+                    AudioManager.AUDIOFOCUS_LOSS,
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                        if (audioRecorder.isRecording) {
+                            serviceScope.launch {
+                                coordinator.requestStopCapture()
+                                finalizeRecording(asInterrupted = true)
+                            }
+                        }
+                    }
+                }
+            }
+            .build()
+        audioFocusRequest = request
+        return am.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    private fun abandonAudioFocus() {
+        audioFocusRequest?.let { audioManager?.abandonAudioFocusRequest(it) }
+        audioFocusRequest = null
+    }
+
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Recording",
+            getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Shown while Wake Capture is recording audio"
+            description = getString(R.string.notification_channel_description)
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
@@ -176,12 +223,12 @@ class AudioCaptureService : Service() {
         val timeText = String.format("%d:%02d", minutes, seconds)
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Recording")
+            .setContentTitle(getString(R.string.notification_channel_name))
             .setContentText(timeText)
             .setSmallIcon(R.drawable.ic_mic)
             .setOngoing(true)
             .setContentIntent(openPending)
-            .addAction(R.drawable.ic_stop, "Stop", stopPending)
+            .addAction(R.drawable.ic_stop, getString(R.string.notification_stop), stopPending)
             .setSilent(true)
             .build()
     }
@@ -191,8 +238,9 @@ class AudioCaptureService : Service() {
             val durationMs = System.currentTimeMillis() - recordingStartTime
             audioRecorder.stop()
             audioRecorder.release()
-            serviceScope.launch { coordinator.onCaptureInterrupted(durationMs) }
+            runBlocking(Dispatchers.IO) { coordinator.onCaptureInterrupted(durationMs) }
         }
+        abandonAudioFocus()
         serviceScope.cancel()
         super.onDestroy()
     }

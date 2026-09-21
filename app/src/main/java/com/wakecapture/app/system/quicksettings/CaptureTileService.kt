@@ -5,6 +5,7 @@ import android.content.Intent
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
+import com.wakecapture.app.R
 import com.wakecapture.app.capture.CaptureCoordinator
 import com.wakecapture.app.capture.CaptureState
 import com.wakecapture.app.capture.service.AudioCaptureService
@@ -55,7 +56,7 @@ class CaptureTileService : TileService() {
                             )
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to start foreground service from tile", e)
-                            launchAppWithError("Unable to start recording. Please open the app.")
+                            launchAppWithError(getString(R.string.tile_start_error))
                         }
                     } else {
                         launchAppWithError(result.exceptionOrNull()?.message)
@@ -65,8 +66,8 @@ class CaptureTileService : TileService() {
                 CaptureState.INTERRUPTED, CaptureState.FAILED -> {
                     launchAppWithError(
                         when (currentState) {
-                            CaptureState.PERMISSION_DENIED -> "Microphone permission required"
-                            else -> "Arm Wake Capture first"
+                            CaptureState.PERMISSION_DENIED -> getString(R.string.tile_mic_permission_required)
+                            else -> getString(R.string.tile_arm_first)
                         }
                     )
                 }
@@ -100,8 +101,8 @@ class CaptureTileService : TileService() {
                 else -> Tile.STATE_INACTIVE
             }
             tile.label = when (currentState) {
-                CaptureState.RECORDING -> "Recording"
-                else -> "Capture"
+                CaptureState.RECORDING -> getString(R.string.state_recording)
+                else -> getString(R.string.capture)
             }
             tile.updateTile()
         }

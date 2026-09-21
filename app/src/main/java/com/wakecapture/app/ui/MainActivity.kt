@@ -10,8 +10,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.wakecapture.app.capture.CaptureCoordinator
 import com.wakecapture.app.data.PreferencesManager
@@ -20,7 +24,7 @@ import com.wakecapture.app.ui.navigation.WakeCaptureNavGraph
 import com.wakecapture.app.ui.theme.WakeCaptureTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -28,6 +32,8 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var coordinator: CaptureCoordinator
     @Inject lateinit var preferencesManager: PreferencesManager
+
+    private var startDestination by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,7 +45,9 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
 
-        val startDest = determineStartDestination()
+        lifecycleScope.launch {
+            startDestination = determineStartDestination()
+        }
 
         setContent {
             WakeCaptureTheme {
@@ -47,14 +55,17 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
-                    WakeCaptureNavGraph(
-                        navController = navController,
-                        startDestination = startDest,
-                        onDisarm = {
-                            runBlocking { coordinator.disarm() }
-                        }
-                    )
+                    val dest = startDestination
+                    if (dest != null) {
+                        val navController = rememberNavController()
+                        WakeCaptureNavGraph(
+                            navController = navController,
+                            startDestination = dest,
+                            onDisarm = {
+                                lifecycleScope.launch { coordinator.disarm() }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -62,7 +73,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        runBlocking {
+        lifecycleScope.launch {
             coordinator.checkAndHandleExpiry()
             if (coordinator.hasRecordAudioPermission()) {
                 coordinator.onPermissionRestored()
@@ -70,12 +81,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun determineStartDestination(): String {
+    private suspend fun determineStartDestination(): String {
         val hasPermissions = ContextCompat.checkSelfPermission(
             this, Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
 
-        val onboardingDone = runBlocking { preferencesManager.onboardingCompleted.first() }
+        val onboardingDone = preferencesManager.onboardingCompleted.first()
 
         return when {
             !onboardingDone -> Routes.ONBOARDING

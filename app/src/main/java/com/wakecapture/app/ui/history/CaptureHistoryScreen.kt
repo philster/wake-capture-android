@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -21,9 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wakecapture.app.R
 import com.wakecapture.app.data.CaptureEntity
 import com.wakecapture.app.data.PersistenceState
 import java.text.SimpleDateFormat
@@ -42,10 +45,10 @@ fun CaptureHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Capture History") },
+                title = { Text(stringResource(R.string.capture_history)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -54,13 +57,14 @@ fun CaptureHistoryScreen(
         if (captures.isEmpty()) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
                     .padding(padding)
+                    .widthIn(max = 600.dp)
+                    .fillMaxSize()
                     .padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "No captures yet",
+                    text = stringResource(R.string.no_captures_yet),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -68,8 +72,9 @@ fun CaptureHistoryScreen(
         } else {
             LazyColumn(
                 modifier = Modifier
-                    .fillMaxSize()
                     .padding(padding)
+                    .widthIn(max = 600.dp)
+                    .fillMaxSize()
             ) {
                 items(captures, key = { it.id }) { capture ->
                     CaptureListItem(capture = capture, onClick = { onCaptureClick(capture.id) })
@@ -85,8 +90,8 @@ private fun CaptureListItem(capture: CaptureEntity, onClick: () -> Unit) {
     val duration = formatDuration(capture.durationMs)
     val stateLabel = when (capture.state) {
         PersistenceState.SAVED -> ""
-        PersistenceState.INTERRUPTED -> " (interrupted)"
-        PersistenceState.FAILED -> " (failed)"
+        PersistenceState.INTERRUPTED -> stringResource(R.string.history_state_interrupted)
+        PersistenceState.FAILED -> stringResource(R.string.history_state_failed)
     }
 
     ListItem(

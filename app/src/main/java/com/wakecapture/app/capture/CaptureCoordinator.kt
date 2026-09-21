@@ -56,6 +56,7 @@ class CaptureCoordinator @Inject constructor(
     }
 
     private suspend fun restoreState() {
+        recoverOrphanedRecording()
         if (preferencesManager.isAutoDisarmExpired()) {
             preferencesManager.disarm()
             return
@@ -64,6 +65,22 @@ class CaptureCoordinator @Inject constructor(
         if (armed) {
             _state.value = CaptureState.ARMED
         }
+    }
+
+    private suspend fun recoverOrphanedRecording() {
+        val orphanedPath = repository.readOrphanedBreadcrumb() ?: return
+        Log.w(TAG, "Found orphaned recording breadcrumb: $orphanedPath")
+        try {
+            repository.markInterrupted(
+                id = UUID.randomUUID().toString(),
+                filePath = orphanedPath,
+                durationMs = 0,
+                source = CaptureSource.APP
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to recover orphaned recording", e)
+        }
+        repository.clearBreadcrumb()
     }
 
     suspend fun arm(): Result<Unit> = mutex.withLock {
@@ -124,6 +141,7 @@ class CaptureCoordinator @Inject constructor(
         currentFilePath = repository.createFilePath()
         currentSource = source
         _error.value = null
+        repository.writeBreadcrumb(currentFilePath!!)
         Result.success(Unit)
     }
 
@@ -173,6 +191,7 @@ class CaptureCoordinator @Inject constructor(
             return Result.failure(e)
         }
 
+        repository.clearBreadcrumb()
         currentCaptureId = null
         currentFilePath = null
         currentSource = null
@@ -194,6 +213,7 @@ class CaptureCoordinator @Inject constructor(
             }
         }
 
+        repository.clearBreadcrumb()
         currentCaptureId = null
         currentFilePath = null
         currentSource = null
