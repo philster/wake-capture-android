@@ -527,6 +527,26 @@ If interrupted:
 
 ---
 
+## 13.1 Audio playback
+
+The capture detail screen provides in-app playback of saved recordings.
+
+Implementation:
+- `CaptureDetailViewModel` manages a `MediaPlayer` instance.
+- Before playback, request audio focus via `AudioManager` with `AudioAttributes.USAGE_MEDIA` / `AudioAttributes.CONTENT_TYPE_SPEECH`.
+- On audio focus loss (transient or permanent), stop playback and release the player.
+- On playback completion, release audio focus and the player.
+- Expose `isPlaying`, `fileExists`, and `playbackError` as `StateFlow` for the Compose UI.
+- The play/stop button uses `semantics { liveRegion = LiveRegionMode.Polite }` so screen readers announce state changes.
+- If the audio file does not exist on disk, the play button is disabled.
+- Playback errors show an `AlertDialog` with a dismiss action.
+
+The player is released in `ViewModel.onCleared()` to prevent leaks.
+
+Do not implement streaming, seeking, or background playback in MVP.
+
+---
+
 ## 14. Lock-screen behavior
 
 Do not assume a third-party app can freely launch microphone capture from every locked-screen context.
@@ -619,7 +639,7 @@ Never use silence detection to initiate recording.
 
 ## 18. Audio focus / interruptions
 
-Handle:
+Handle during recording and playback:
 - incoming phone calls
 - other audio apps
 - Bluetooth headset changes
@@ -759,7 +779,7 @@ Recommended packages:
 - WakeModeSettings
 - RecordingScreen
 - CaptureHistory
-- CaptureDetail
+- CaptureDetail (with audio playback via MediaPlayer)
 
 `processing/` (stub only — not implemented in MVP)
 - TranscriptionService (interface/protocol only)
@@ -886,6 +906,18 @@ Then test the same flow on:
 - one other major OEM
 
 If a particular system surface cannot legally start the microphone service while locked on a device/version, do not build a workaround. Fall back to the next documented system surface.
+
+---
+
+## 27.1 Accessibility and localization
+
+All user-visible strings are extracted to `res/values/strings.xml` for localization readiness.
+
+Accessibility:
+- All interactive controls have `contentDescription` semantics.
+- State changes (recording status, playback toggle) use `LiveRegionMode.Polite` to announce updates to screen readers.
+- The arm/disarm switch label reflects the current state for TalkBack users.
+- Error dialogs and permission screens are navigable via accessibility services.
 
 ---
 

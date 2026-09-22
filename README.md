@@ -22,6 +22,7 @@ No cloud sync, no transcription (yet), no always-on microphone. The app does exa
 2. **Capture** when you wake up. The Quick Settings tile works from the lock screen on most devices; the in-app button works when the app is open.
 3. **Stop** by tapping the tile again, the stop button in the notification, or the floating stop button in the app. Silence timeout and max duration limits will stop it automatically if you fall back asleep.
 4. Audio saves as AAC in an M4A container to private app storage. Recordings survive in a Room database with metadata.
+5. **Play back** recordings from the capture detail screen. The built-in player handles audio focus so it pauses correctly for calls and other audio.
 
 The app stays armed after a recording finishes so you can capture again without re-arming. The auto-disarm countdown keeps running independently.
 
@@ -32,6 +33,8 @@ Kotlin 2.0, Jetpack Compose, single-module Gradle build.
 **State machine.** `CaptureCoordinator` owns a `CaptureState` flow: DISARMED → ARMED → STARTING → RECORDING → STOPPING → back to ARMED. Permission denial and failures have their own states. The coordinator is the single source of truth; both the UI and the `CaptureTileService` read from it.
 
 **Recording.** `AudioCaptureService` runs as a foreground service with `foregroundServiceType="microphone"`. Uses `MediaRecorder` behind an `AudioRecorder` interface so the implementation can swap to `AudioRecord` later if silence detection needs raw buffers.
+
+**Playback.** `CaptureDetailViewModel` manages a `MediaPlayer` for recording playback, requesting audio focus before playing and releasing it on stop/completion. Playback state is exposed via `StateFlow` to the Compose UI.
 
 **Persistence.** Arm state and settings live in DataStore (survives process death). Capture records go to Room. Audio files write to `context.filesDir/captures/`.
 
@@ -81,7 +84,7 @@ app/src/main/java/com/wakecapture/app/
 │   ├── home/                    # arm toggle, start capture, recording indicator
 │   ├── permission/              # mic-revoked screen with auto-restore
 │   ├── history/                 # past recordings list
-│   ├── detail/                  # single recording playback
+│   ├── detail/                  # single recording view with audio playback
 │   ├── settings/                # auto-disarm, silence timeout, max duration
 │   └── theme/
 └── processing/                  # transcription/summarization stubs
@@ -90,6 +93,8 @@ app/src/main/java/com/wakecapture/app/
 ## What's not built yet
 
 Silence detection (needs `AudioRecord` swap), transcription, cloud backup, home screen widget, assistant integration. See `docs/SPEC.md` for the full plan.
+
+All UI strings are extracted to `strings.xml` for localization readiness. Accessibility labels and live regions are in place for screen readers.
 
 ## License
 
